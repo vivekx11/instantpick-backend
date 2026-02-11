@@ -21,9 +21,9 @@ const productSchema = new mongoose.Schema({
     min: 0
   },
   shopId: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Shop',
-    required: true
+    type: String, // Changed from ObjectId to String for flexibility
+    required: true,
+    default: 'default-shop'
   },
   shopName: {
     type: String,
