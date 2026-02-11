@@ -16,7 +16,8 @@ app.use('/api/shops', require('./routes/shops'));
 app.use('/api/products', require('./routes/products'));
 app.use('/api/orders', require('./routes/orders'));
 app.use('/api/users', require('./routes/users'));
-app.use('/api/upload', require('./routes/upload'));
+app.use('/api/upload', require('./routes/upload_imagekit')); // ImageKit upload
+app.use('/api/upload-base64', require('./routes/upload_base64')); // Base64 upload (backup)
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
