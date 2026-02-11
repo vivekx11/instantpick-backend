@@ -16,8 +16,21 @@ app.use('/api/shops', require('./routes/shops'));
 app.use('/api/products', require('./routes/products'));
 app.use('/api/orders', require('./routes/orders'));
 app.use('/api/users', require('./routes/users'));
-app.use('/api/upload-base64', require('./routes/upload_base64')); // Base64 upload (always works)
-app.use('/api/upload', require('./routes/upload_base64')); // Default to base64 for now
+app.use('/api/upload-base64', require('./routes/upload_base64')); // Base64 upload (backup)
+
+// Use ImageKit if credentials are available, otherwise use base64
+try {
+  if (process.env.IMAGEKIT_PUBLIC_KEY && process.env.IMAGEKIT_PRIVATE_KEY) {
+    console.log('✅ Using ImageKit for uploads');
+    app.use('/api/upload', require('./routes/upload_imagekit'));
+  } else {
+    console.log('⚠️  Using Base64 for uploads (ImageKit credentials not found)');
+    app.use('/api/upload', require('./routes/upload_base64'));
+  }
+} catch (error) {
+  console.error('❌ Error loading upload route:', error.message);
+  app.use('/api/upload', require('./routes/upload_base64')); // Fallback to base64
+}
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
