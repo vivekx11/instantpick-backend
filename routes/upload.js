@@ -19,10 +19,10 @@ router.post('/product', upload.single('image'), async (req, res) => {
     }
 
     // Extract product data from request body
-    const { name, description, price, shopId, shopName, category, stock, unit } = req.body;
+    const { name, description, price, shopId, shopName, ownerId, category, stock, unit } = req.body;
 
-    // Validate required fields
-    if (!name || !description || !price || !shopId || !shopName) {
+    // Validate required fields - only basic fields needed
+    if (!name || !description || !price) {
       // If validation fails, delete the uploaded image from Cloudinary
       if (req.file.filename) {
         await cloudinary.uploader.destroy(req.file.filename);
@@ -30,8 +30,43 @@ router.post('/product', upload.single('image'), async (req, res) => {
       
       return res.status(400).json({
         success: false,
-        message: 'Missing required fields: name, description, price, shopId, shopName'
+        message: 'Missing required fields: name, description, price'
       });
+    }
+
+    let finalShopId = shopId;
+    let finalShopName = shopName || 'My Shop';
+    
+    // Auto-create shop if ownerId is provided
+    if (ownerId) {
+      const Shop = require('../models/Shop');
+      
+      // Check if owner already has a shop
+      let ownerShop = await Shop.findOne({ ownerId: ownerId });
+      
+      if (!ownerShop) {
+        // Create new shop for this owner
+        console.log('Creating new shop for owner:', ownerId);
+        ownerShop = new Shop({
+          name: shopName || `${ownerId}'s Shop`,
+          description: 'My shop selling quality products',
+          category: 'General',
+          address: 'Local Area',
+          phone: ownerId,
+          ownerName: shopName || 'Shop Owner',
+          ownerId: ownerId,
+          isApproved: true,
+          isActive: true
+        });
+        await ownerShop.save();
+        console.log('New shop created:', ownerShop._id);
+      }
+      
+      finalShopId = ownerShop._id.toString();
+      finalShopName = ownerShop.name;
+    } else if (!finalShopId) {
+      // Use default shop if no ownerId provided
+      finalShopId = '698dc943148fdab957c75f4c';
     }
 
     // Get the Cloudinary URL
@@ -42,8 +77,8 @@ router.post('/product', upload.single('image'), async (req, res) => {
       name,
       description,
       price: parseFloat(price),
-      shopId,
-      shopName,
+      shopId: finalShopId,
+      shopName: finalShopName,
       category: category || 'General',
       imageUrls: [imageUrl],
       stock: stock ? parseInt(stock) : 0,
