@@ -197,7 +197,7 @@ router.put('/:id/toggle-status', async (req, res) => {
   }
 });
 
-// GET /api/shops/categories - Get all categories
+// GET /api/shops/meta/categories - Get all categories
 router.get('/meta/categories', async (req, res) => {
   try {
     const categories = [
@@ -222,6 +222,32 @@ router.get('/meta/categories', async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to fetch categories',
+      error: error.message
+    });
+  }
+});
+
+// GET /api/shops/by-name/:name - Get shop by name
+router.get('/by-name/:name', async (req, res) => {
+  try {
+    const shop = await Shop.findOne({ name: req.params.name }).select('-__v');
+    
+    if (!shop) {
+      return res.status(404).json({
+        success: false,
+        message: 'Shop not found'
+      });
+    }
+    
+    res.json({
+      success: true,
+      data: shop
+    });
+  } catch (error) {
+    console.error('Error fetching shop by name:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch shop',
       error: error.message
     });
   }

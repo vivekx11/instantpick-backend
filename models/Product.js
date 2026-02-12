@@ -83,14 +83,30 @@ productSchema.set('toJSON', { virtuals: true });
 
 // Pre-save middleware to update shop name if needed
 productSchema.pre('save', async function(next) {
-  if (this.isModified('shopId')) {
-    const Shop = mongoose.model('Shop');
-    const shop = await Shop.findById(this.shopId);
-    if (shop) {
-      this.shopName = shop.name;
+  try {
+    if (this.isModified('shopId') && this.shopId && this.shopId !== 'unknown' && this.shopId !== 'default-shop') {
+      const Shop = mongoose.model('Shop');
+      
+      // Check if shopId is a valid ObjectId
+      if (mongoose.Types.ObjectId.isValid(this.shopId)) {
+        const shop = await Shop.findById(this.shopId);
+        if (shop) {
+          this.shopName = shop.name;
+        }
+      } else {
+        // If shopId is not valid ObjectId, try to find by shop name
+        const shop = await Shop.findOne({ name: this.shopId });
+        if (shop) {
+          this.shopId = shop._id.toString();
+          this.shopName = shop.name;
+        }
+      }
     }
+    next();
+  } catch (error) {
+    console.error('Error in product pre-save hook:', error);
+    next(error);
   }
-  next();
 });
 
 module.exports = mongoose.model('Product', productSchema);

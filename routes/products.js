@@ -101,11 +101,13 @@ router.post('/', async (req, res) => {
       tags
     } = req.body;
     
+    console.log('Product creation request:', { name, shopName, shopId, price });
+    
     // Validation
-    if (!name || !description || !price || !shopId || !shopName) {
+    if (!name || !description || !price) {
       return res.status(400).json({
         success: false,
-        message: 'All required fields must be provided'
+        message: 'Name, description, and price are required'
       });
     }
     
@@ -116,13 +118,47 @@ router.post('/', async (req, res) => {
       });
     }
     
+    // Find shop by ID or name
+    let shop = null;
+    let finalShopId = shopId;
+    let finalShopName = shopName;
+    
+    const Shop = require('../models/Shop');
+    
+    // If shopId is provided and valid, use it
+    if (shopId && shopId !== 'unknown' && shopId !== 'default-shop') {
+      const mongoose = require('mongoose');
+      if (mongoose.Types.ObjectId.isValid(shopId)) {
+        shop = await Shop.findById(shopId);
+      }
+    }
+    
+    // If shop not found by ID, try finding by name
+    if (!shop && shopName) {
+      shop = await Shop.findOne({ name: shopName.trim() });
+    }
+    
+    // If shop found, use its ID and name
+    if (shop) {
+      finalShopId = shop._id.toString();
+      finalShopName = shop.name;
+      console.log('Shop found:', { id: finalShopId, name: finalShopName });
+    } else {
+      // If no shop found, return error
+      return res.status(400).json({
+        success: false,
+        message: `Shop not found. Please register shop "${shopName || shopId}" first.`,
+        hint: 'Use POST /api/shops to register the shop'
+      });
+    }
+    
     // Create product
     const product = new Product({
       name: name.trim(),
       description: description.trim(),
       price: parseFloat(price),
-      shopId,
-      shopName: shopName.trim(),
+      shopId: finalShopId,
+      shopName: finalShopName,
       category: category || 'General',
       imageUrls: imageUrls || [],
       stock: stock || 0,
@@ -131,6 +167,8 @@ router.post('/', async (req, res) => {
     });
     
     await product.save();
+    
+    console.log('Product created successfully:', product._id);
     
     res.status(201).json({
       success: true,
