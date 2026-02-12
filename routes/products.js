@@ -103,7 +103,7 @@ router.post('/', async (req, res) => {
     
     console.log('Product creation request:', { name, shopName, shopId, price });
     
-    // Validation
+    // Validation - only basic fields required
     if (!name || !description || !price) {
       return res.status(400).json({
         success: false,
@@ -118,41 +118,11 @@ router.post('/', async (req, res) => {
       });
     }
     
-    // Find shop by ID or name
-    let shop = null;
-    let finalShopId = shopId;
-    let finalShopName = shopName;
+    // Use provided shopId or default
+    const finalShopId = shopId || '698dc943148fdab957c75f4c'; // Your shop ID
+    const finalShopName = shopName || 'Vivek Shop';
     
-    const Shop = require('../models/Shop');
-    
-    // If shopId is provided and valid, use it
-    if (shopId && shopId !== 'unknown' && shopId !== 'default-shop') {
-      const mongoose = require('mongoose');
-      if (mongoose.Types.ObjectId.isValid(shopId)) {
-        shop = await Shop.findById(shopId);
-      }
-    }
-    
-    // If shop not found by ID, try finding by name
-    if (!shop && shopName) {
-      shop = await Shop.findOne({ name: shopName.trim() });
-    }
-    
-    // If shop found, use its ID and name
-    if (shop) {
-      finalShopId = shop._id.toString();
-      finalShopName = shop.name;
-      console.log('Shop found:', { id: finalShopId, name: finalShopName });
-    } else {
-      // If no shop found, return error
-      return res.status(400).json({
-        success: false,
-        message: `Shop not found. Please register shop "${shopName || shopId}" first.`,
-        hint: 'Use POST /api/shops to register the shop'
-      });
-    }
-    
-    // Create product
+    // Create product - no shop validation
     const product = new Product({
       name: name.trim(),
       description: description.trim(),
@@ -163,7 +133,8 @@ router.post('/', async (req, res) => {
       imageUrls: imageUrls || [],
       stock: stock || 0,
       unit: unit || 'piece',
-      tags: tags || []
+      tags: tags || [],
+      isAvailable: true
     });
     
     await product.save();
