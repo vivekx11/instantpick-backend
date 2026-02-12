@@ -51,6 +51,12 @@ const shopSchema = new mongoose.Schema({
     trim: true,
     maxlength: 100
   },
+  ownerId: {
+    type: String,
+    required: false,
+    trim: true,
+    index: true
+  },
   imageUrl: {
     type: String,
     default: ''

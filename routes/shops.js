@@ -2,13 +2,22 @@ const express = require('express');
 const router = express.Router();
 const Shop = require('../models/Shop');
 
-// GET /api/shops - Get all approved shops
+// GET /api/shops - Get all approved shops or by ownerId
 router.get('/', async (req, res) => {
   try {
-    const { category, search, isOpen } = req.query;
+    const { category, search, isOpen, ownerId } = req.query;
     
     // Build query
-    let query = { isActive: true, isApproved: true };
+    let query = {};
+    
+    // If ownerId is provided, search by ownerId (for shop owner app)
+    if (ownerId) {
+      query.ownerId = ownerId;
+    } else {
+      // Otherwise, show only approved shops (for user app)
+      query.isActive = true;
+      query.isApproved = true;
+    }
     
     if (category) {
       query.category = category;
@@ -77,6 +86,7 @@ router.post('/', async (req, res) => {
       address,
       phone,
       ownerName,
+      ownerId,
       imageUrl
     } = req.body;
     
@@ -97,6 +107,18 @@ router.post('/', async (req, res) => {
       });
     }
     
+    // Check if owner already has a shop
+    if (ownerId) {
+      const ownerShop = await Shop.findOne({ ownerId: ownerId });
+      if (ownerShop) {
+        return res.status(409).json({
+          success: false,
+          message: 'Owner already has a registered shop',
+          data: ownerShop
+        });
+      }
+    }
+    
     // Create new shop
     const shop = new Shop({
       name: name.trim(),
@@ -105,6 +127,7 @@ router.post('/', async (req, res) => {
       address: address.trim(),
       phone: phone.trim(),
       ownerName: ownerName.trim(),
+      ownerId: ownerId || '',
       imageUrl: imageUrl || '',
       isApproved: true // Auto-approve for now
     });
