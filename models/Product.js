@@ -21,9 +21,15 @@ const productSchema = new mongoose.Schema({
     min: 0
   },
   shopId: {
-    type: String, // Changed from ObjectId to String for flexibility
+    type: String,
     required: true,
-    default: 'default-shop'
+    validate: {
+      validator: function(v) {
+        // Allow valid MongoDB ObjectId or non-empty string
+        return v && v !== 'unknown' && v !== 'default-shop';
+      },
+      message: 'Shop ID must be a valid value'
+    }
   },
   shopName: {
     type: String,

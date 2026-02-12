@@ -24,7 +24,27 @@ router.post('/', async (req, res) => {
     }
     
     // Get shop details
-    const shop = await Shop.findById(shopId);
+    let shop = null;
+    
+    // Validate shopId
+    if (!shopId || shopId === 'unknown' || shopId === 'default-shop') {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid shop ID. Please select a valid shop.'
+      });
+    }
+    
+    // Try to find shop by ID (if it's a valid ObjectId)
+    const mongoose = require('mongoose');
+    if (mongoose.Types.ObjectId.isValid(shopId)) {
+      shop = await Shop.findById(shopId);
+    }
+    
+    // If not found by ID, try by name
+    if (!shop) {
+      shop = await Shop.findOne({ name: shopId });
+    }
+    
     if (!shop) {
       return res.status(404).json({
         success: false,
