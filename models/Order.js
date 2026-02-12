@@ -55,7 +55,7 @@ const orderSchema = new mongoose.Schema({
     type: String,
     required: true,
     unique: true,
-    length: 6
+    length: 4
   },
   status: {
     type: String,
@@ -154,8 +154,8 @@ orderSchema.statics.generatePickupCode = async function() {
   let isUnique = false;
   
   while (!isUnique) {
-    // Generate 6-digit code
-    code = Math.floor(100000 + Math.random() * 900000).toString();
+    // Generate 4-digit code
+    code = Math.floor(1000 + Math.random() * 9000).toString();
     
     // Check if code already exists
     const existingOrder = await this.findOne({ pickupCode: code });
