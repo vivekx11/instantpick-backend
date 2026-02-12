@@ -85,7 +85,7 @@ router.get('/:id', async (req, res) => {
   }
 });
 
-// POST /api/products - Create new product
+// POST /api/products - Create new product (with auto shop creation)
 router.post('/', async (req, res) => {
   try {
     const {
@@ -94,6 +94,7 @@ router.post('/', async (req, res) => {
       price,
       shopId,
       shopName,
+      ownerId,
       category,
       imageUrls,
       stock,
@@ -101,7 +102,7 @@ router.post('/', async (req, res) => {
       tags
     } = req.body;
     
-    console.log('Product creation request:', { name, shopName, shopId, price });
+    console.log('Product creation request:', { name, shopName, ownerId, price });
     
     // Validation - only basic fields required
     if (!name || !description || !price) {
@@ -118,11 +119,42 @@ router.post('/', async (req, res) => {
       });
     }
     
-    // Use provided shopId or default
-    const finalShopId = shopId || '698dc943148fdab957c75f4c'; // Your shop ID
-    const finalShopName = shopName || 'Vivek Shop';
+    let finalShopId = shopId;
+    let finalShopName = shopName || 'My Shop';
     
-    // Create product - no shop validation
+    // Auto-create shop if ownerId is provided and shop doesn't exist
+    if (ownerId) {
+      const Shop = require('../models/Shop');
+      
+      // Check if owner already has a shop
+      let ownerShop = await Shop.findOne({ ownerId: ownerId });
+      
+      if (!ownerShop) {
+        // Create new shop for this owner
+        console.log('Creating new shop for owner:', ownerId);
+        ownerShop = new Shop({
+          name: shopName || `${ownerId}'s Shop`,
+          description: 'My shop selling quality products',
+          category: 'General',
+          address: 'Local Area',
+          phone: ownerId,
+          ownerName: shopName || 'Shop Owner',
+          ownerId: ownerId,
+          isApproved: true,
+          isActive: true
+        });
+        await ownerShop.save();
+        console.log('New shop created:', ownerShop._id);
+      }
+      
+      finalShopId = ownerShop._id.toString();
+      finalShopName = ownerShop.name;
+    } else if (!finalShopId) {
+      // Use default shop if no ownerId provided
+      finalShopId = '698dc943148fdab957c75f4c';
+    }
+    
+    // Create product
     const product = new Product({
       name: name.trim(),
       description: description.trim(),
