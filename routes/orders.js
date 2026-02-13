@@ -15,36 +15,24 @@ router.post('/', async (req, res) => {
       customerName
     } = req.body;
     
+    console.log('📦 New order request:', { userId, shopId, itemsCount: items?.length, totalAmount });
+    
     // Validation
-    if (!userId || !shopId || !items || !Array.isArray(items) || items.length === 0 || !totalAmount || !customerName) {
+    if (!userId || !shopId || !items || !Array.isArray(items) || items.length === 0 || !totalAmount) {
       return res.status(400).json({
         success: false,
-        message: 'All required fields must be provided'
+        message: 'userId, shopId, items, and totalAmount are required'
       });
     }
     
-    // Get shop details - simplified
-    let shop = null;
+    // Get shop details
+    const shop = await Shop.findById(shopId);
     
-    // Validate shopId
-    if (!shopId || shopId === 'unknown' || shopId === 'default-shop') {
-      // Use default shop
-      shopId = '698dc943148fdab957c75f4c';
-    }
-    
-    // Try to find shop
-    const mongoose = require('mongoose');
-    if (mongoose.Types.ObjectId.isValid(shopId)) {
-      shop = await Shop.findById(shopId);
-    }
-    
-    // If shop not found, use default values
     if (!shop) {
-      shop = {
-        _id: shopId,
-        name: 'Vivek Shop',
-        address: 'Main Market, Local Area'
-      };
+      return res.status(404).json({
+        success: false,
+        message: 'Shop not found'
+      });
     }
     
     if (!shop.isActive || !shop.isApproved) {
@@ -54,8 +42,10 @@ router.post('/', async (req, res) => {
       });
     }
     
-    // Generate unique pickup code
-    const pickupCode = await Order.generatePickupCode();
+    // Generate 4-digit pickup PIN
+    const pickupPin = Order.generatePickupPin();
+    
+    console.log('🔢 Generated PIN:', pickupPin);
     
     // Create order
     const order = new Order({
@@ -65,25 +55,44 @@ router.post('/', async (req, res) => {
       shopAddress: shop.address,
       items,
       totalAmount,
-      pickupCode,
+      pickupPin,
       notes: notes?.trim() || '',
-      customerName: customerName.trim()
+      customerName: customerName?.trim() || 'Guest',
+      status: 'Pending'
     });
     
     await order.save();
+    
+    console.log('✅ Order created:', order._id);
     
     // Update shop stats
     await Shop.findByIdAndUpdate(shopId, {
       $inc: { totalOrders: 1 }
     });
     
+    // Update user stats
+    const User = require('../models/User');
+    await User.findOneAndUpdate(
+      { userId },
+      { $inc: { totalOrders: 1, totalSpent: totalAmount } },
+      { upsert: true }
+    );
+    
     res.status(201).json({
       success: true,
       message: 'Order placed successfully',
-      data: order
+      data: {
+        orderId: order._id,
+        orderNumber: order.orderNumber,
+        pickupPin: order.pickupPin,
+        status: order.status,
+        totalAmount: order.totalAmount,
+        shopName: order.shopName,
+        createdAt: order.createdAt
+      }
     });
   } catch (error) {
-    console.error('Error placing order:', error);
+    console.error('❌ Error placing order:', error);
     res.status(500).json({
       success: false,
       message: 'Failed to place order',
@@ -92,7 +101,93 @@ router.post('/', async (req, res) => {
   }
 });
 
-// GET /api/orders/verify/:pickupCode - Verify pickup code
+// POST /api/orders/verify-pin - Verify order PIN for pickup
+router.post('/verify-pin', async (req, res) => {
+  try {
+    const { orderId, pickupPin } = req.body;
+    
+    console.log('🔍 Verifying PIN:', { orderId, pickupPin });
+    
+    if (!orderId || !pickupPin) {
+      return res.status(400).json({
+        success: false,
+        message: 'orderId and pickupPin are required'
+      });
+    }
+    
+    // Find order
+    const order = await Order.findById(orderId);
+    
+    if (!order) {
+      return res.status(404).json({
+        success: false,
+        message: 'Order not found'
+      });
+    }
+    
+    // Check if order is already completed or cancelled
+    if (order.status === 'Completed') {
+      return res.status(400).json({
+        success: false,
+        message: 'Order is already completed'
+      });
+    }
+    
+    if (order.status === 'Cancelled') {
+      return res.status(400).json({
+        success: false,
+        message: 'Order is cancelled'
+      });
+    }
+    
+    // Check if order is accepted
+    if (order.status !== 'Accepted') {
+      return res.status(400).json({
+        success: false,
+        message: 'Order must be accepted before pickup'
+      });
+    }
+    
+    // Verify PIN
+    if (order.pickupPin !== pickupPin.toString()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid PIN'
+      });
+    }
+    
+    // Mark order as completed
+    order.status = 'Completed';
+    await order.save();
+    
+    console.log('✅ Order completed:', orderId);
+    
+    // Update shop revenue
+    await Shop.findByIdAndUpdate(order.shopId, {
+      $inc: { totalRevenue: order.totalAmount }
+    });
+    
+    res.json({
+      success: true,
+      message: 'Order completed successfully',
+      data: {
+        orderId: order._id,
+        orderNumber: order.orderNumber,
+        status: order.status,
+        completedAt: order.completedAt
+      }
+    });
+  } catch (error) {
+    console.error('❌ Error verifying PIN:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to verify PIN',
+      error: error.message
+    });
+  }
+});
+
+// GET /api/orders/verify/:pickupCode - Verify pickup code (legacy support)
 router.get('/verify/:pickupCode', async (req, res) => {
   try {
     const { pickupCode } = req.params;
@@ -150,11 +245,13 @@ router.put('/:id/status', async (req, res) => {
   try {
     const { status, cancellationReason } = req.body;
     
-    const validStatuses = ['accepted', 'preparing', 'ready', 'completed', 'cancelled'];
+    console.log('📝 Updating order status:', { orderId: req.params.id, status });
+    
+    const validStatuses = ['Pending', 'Accepted', 'Completed', 'Cancelled'];
     if (!validStatuses.includes(status)) {
       return res.status(400).json({
         success: false,
-        message: 'Invalid status'
+        message: 'Invalid status. Must be: Pending, Accepted, Completed, or Cancelled'
       });
     }
     
@@ -169,12 +266,10 @@ router.put('/:id/status', async (req, res) => {
     // Check if status transition is valid
     const currentStatus = order.status;
     const validTransitions = {
-      'placed': ['accepted', 'cancelled'],
-      'accepted': ['preparing', 'ready', 'cancelled'],
-      'preparing': ['ready', 'cancelled'],
-      'ready': ['completed', 'cancelled'],
-      'completed': [],
-      'cancelled': []
+      'Pending': ['Accepted', 'Cancelled'],
+      'Accepted': ['Completed', 'Cancelled'],
+      'Completed': [],
+      'Cancelled': []
     };
     
     if (!validTransitions[currentStatus].includes(status)) {
@@ -186,14 +281,16 @@ router.put('/:id/status', async (req, res) => {
     
     // Update order
     order.status = status;
-    if (status === 'cancelled' && cancellationReason) {
+    if (status === 'Cancelled' && cancellationReason) {
       order.cancellationReason = cancellationReason.trim();
     }
     
     await order.save();
     
+    console.log('✅ Order status updated:', { orderId: order._id, newStatus: status });
+    
     // Update shop revenue if order is completed
-    if (status === 'completed') {
+    if (status === 'Completed') {
       await Shop.findByIdAndUpdate(order.shopId, {
         $inc: { totalRevenue: order.totalAmount }
       });
@@ -201,11 +298,16 @@ router.put('/:id/status', async (req, res) => {
     
     res.json({
       success: true,
-      message: `Order ${status} successfully`,
-      data: order
+      message: `Order ${status.toLowerCase()} successfully`,
+      data: {
+        orderId: order._id,
+        orderNumber: order.orderNumber,
+        status: order.status,
+        pickupPin: order.pickupPin
+      }
     });
   } catch (error) {
-    console.error('Error updating order status:', error);
+    console.error('❌ Error updating order status:', error);
     res.status(500).json({
       success: false,
       message: 'Failed to update order status',

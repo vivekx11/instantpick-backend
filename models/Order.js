@@ -51,16 +51,15 @@ const orderSchema = new mongoose.Schema({
     required: true,
     min: 0
   },
-  pickupCode: {
+  pickupPin: {
     type: String,
     required: true,
-    unique: true,
     length: 4
   },
   status: {
     type: String,
-    enum: ['placed', 'accepted', 'preparing', 'ready', 'completed', 'cancelled'],
-    default: 'placed'
+    enum: ['Pending', 'Accepted', 'Completed', 'Cancelled'],
+    default: 'Pending'
   },
   notes: {
     type: String,
@@ -97,30 +96,15 @@ const orderSchema = new mongoose.Schema({
 });
 
 // Indexes for better query performance
-orderSchema.index({ pickupCode: 1 });
+orderSchema.index({ pickupPin: 1 });
 orderSchema.index({ shopId: 1, status: 1 });
 orderSchema.index({ userId: 1 });
 orderSchema.index({ expiresAt: 1 });
 orderSchema.index({ createdAt: -1 });
 
-// Virtual for order display name
-orderSchema.virtual('statusDisplayName').get(function() {
-  switch (this.status) {
-    case 'placed':
-      return 'Order Placed';
-    case 'accepted':
-      return 'Accepted by Shop';
-    case 'preparing':
-      return 'Preparing';
-    case 'ready':
-      return 'Ready for Pickup';
-    case 'completed':
-      return 'Completed';
-    case 'cancelled':
-      return 'Cancelled';
-    default:
-      return 'Unknown';
-  }
+// Virtual for order number (formatted ID)
+orderSchema.virtual('orderNumber').get(function() {
+  return `ORD${this._id.toString().slice(-8).toUpperCase()}`;
 });
 
 // Virtual for checking if order is expired
@@ -148,23 +132,10 @@ orderSchema.virtual('timeRemaining').get(function() {
 // Ensure virtual fields are serialized
 orderSchema.set('toJSON', { virtuals: true });
 
-// Static method to generate unique pickup code
-orderSchema.statics.generatePickupCode = async function() {
-  let code;
-  let isUnique = false;
-  
-  while (!isUnique) {
-    // Generate 4-digit code
-    code = Math.floor(1000 + Math.random() * 9000).toString();
-    
-    // Check if code already exists
-    const existingOrder = await this.findOne({ pickupCode: code });
-    if (!existingOrder) {
-      isUnique = true;
-    }
-  }
-  
-  return code;
+// Static method to generate 4-digit PIN
+orderSchema.statics.generatePickupPin = function() {
+  // Generate random 4-digit PIN
+  return Math.floor(1000 + Math.random() * 9000).toString();
 };
 
 // Pre-save middleware to set timestamps for status changes
@@ -173,16 +144,13 @@ orderSchema.pre('save', function(next) {
     const now = new Date();
     
     switch (this.status) {
-      case 'accepted':
+      case 'Accepted':
         if (!this.acceptedAt) this.acceptedAt = now;
         break;
-      case 'ready':
-        if (!this.readyAt) this.readyAt = now;
-        break;
-      case 'completed':
+      case 'Completed':
         if (!this.completedAt) this.completedAt = now;
         break;
-      case 'cancelled':
+      case 'Cancelled':
         if (!this.cancelledAt) this.cancelledAt = now;
         break;
     }
