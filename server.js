@@ -65,6 +65,20 @@ const connectDB = async () => {
     const mongoURI = process.env.MONGODB_URI || 'mongodb://localhost:27017/marketplace';
     await mongoose.connect(mongoURI);
     console.log('✅ MongoDB connected successfully');
+    
+    // Drop old pickupCode index (migration)
+    try {
+      const db = mongoose.connection.db;
+      const ordersCollection = db.collection('orders');
+      await ordersCollection.dropIndex('pickupCode_1');
+      console.log('✅ Dropped old pickupCode_1 index');
+    } catch (error) {
+      if (error.code === 27) {
+        console.log('ℹ️  pickupCode_1 index already dropped');
+      } else {
+        console.log('⚠️  Could not drop pickupCode_1 index:', error.message);
+      }
+    }
   } catch (error) {
     console.error('❌ MongoDB connection failed:', error.message);
     process.exit(1);
