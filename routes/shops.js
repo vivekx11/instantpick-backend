@@ -123,7 +123,7 @@ router.post('/', async (req, res) => {
     const shop = new Shop({
       name: name.trim(),
       description: description.trim(),
-      category,
+      category: category || 'Other', // Use 'Other' as default instead of 'General'
       address: address.trim(),
       phone: phone.trim(),
       ownerName: ownerName.trim(),

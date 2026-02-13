@@ -137,7 +137,7 @@ router.post('/', async (req, res) => {
           ownerShop = new Shop({
             name: shopName || `${ownerId}'s Shop`,
             description: 'My shop selling quality products',
-            category: 'General',
+            category: 'Other', // Use 'Other' instead of 'General'
             address: 'Local Area',
             phone: ownerId,
             ownerName: shopName || 'Shop Owner',
