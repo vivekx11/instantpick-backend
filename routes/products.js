@@ -102,7 +102,7 @@ router.post('/', async (req, res) => {
       tags
     } = req.body;
     
-    console.log('Product creation request:', { name, shopName, ownerId, price });
+    console.log('📦 Product creation request:', { name, shopName, ownerId, shopId, price });
     
     // Validation - only basic fields required
     if (!name || !description || !price) {
@@ -122,36 +122,66 @@ router.post('/', async (req, res) => {
     let finalShopId = shopId;
     let finalShopName = shopName || 'My Shop';
     
-    // Auto-create shop if ownerId is provided and shop doesn't exist
-    if (ownerId) {
-      const Shop = require('../models/Shop');
-      
-      // Check if owner already has a shop
-      let ownerShop = await Shop.findOne({ ownerId: ownerId });
-      
-      if (!ownerShop) {
-        // Create new shop for this owner
-        console.log('Creating new shop for owner:', ownerId);
-        ownerShop = new Shop({
-          name: shopName || `${ownerId}'s Shop`,
-          description: 'My shop selling quality products',
-          category: 'General',
-          address: 'Local Area',
-          phone: ownerId,
-          ownerName: shopName || 'Shop Owner',
-          ownerId: ownerId,
-          isApproved: true,
-          isActive: true
+    // CRITICAL: Ensure we have a valid shopId
+    // Priority: 1) Use provided shopId, 2) Find by ownerId, 3) Create new shop
+    if (!finalShopId || finalShopId === '' || finalShopId === 'unknown') {
+      if (ownerId) {
+        const Shop = require('../models/Shop');
+        
+        // Try to find existing shop by ownerId
+        let ownerShop = await Shop.findOne({ ownerId: ownerId });
+        
+        if (!ownerShop) {
+          // Create new shop for this owner
+          console.log('🏪 Creating new shop for owner:', ownerId);
+          ownerShop = new Shop({
+            name: shopName || `${ownerId}'s Shop`,
+            description: 'My shop selling quality products',
+            category: 'General',
+            address: 'Local Area',
+            phone: ownerId,
+            ownerName: shopName || 'Shop Owner',
+            ownerId: ownerId,
+            isApproved: true,
+            isActive: true
+          });
+          await ownerShop.save();
+          console.log('✅ New shop created:', ownerShop._id);
+        } else {
+          console.log('✅ Found existing shop:', ownerShop._id);
+        }
+        
+        finalShopId = ownerShop._id.toString();
+        finalShopName = ownerShop.name;
+      } else {
+        // No ownerId and no shopId - cannot create product
+        return res.status(400).json({
+          success: false,
+          message: 'shopId or ownerId is required to create product'
         });
-        await ownerShop.save();
-        console.log('New shop created:', ownerShop._id);
       }
+    } else {
+      // Verify shopId exists in database
+      const Shop = require('../models/Shop');
+      const mongoose = require('mongoose');
       
-      finalShopId = ownerShop._id.toString();
-      finalShopName = ownerShop.name;
-    } else if (!finalShopId) {
-      // Use default shop if no ownerId provided
-      finalShopId = '698dc943148fdab957c75f4c';
+      if (mongoose.Types.ObjectId.isValid(finalShopId)) {
+        const shop = await Shop.findById(finalShopId);
+        if (shop) {
+          finalShopName = shop.name;
+          console.log('✅ Verified shop exists:', finalShopId);
+        } else {
+          console.log('⚠️ Shop not found, will use provided shopId anyway');
+        }
+      }
+    }
+    
+    // Final validation
+    if (!finalShopId || finalShopId === '') {
+      return res.status(400).json({
+        success: false,
+        message: 'Could not determine shopId for product'
+      });
     }
     
     // Create product
@@ -171,7 +201,7 @@ router.post('/', async (req, res) => {
     
     await product.save();
     
-    console.log('Product created successfully:', product._id);
+    console.log('✅ Product created successfully:', product._id, 'for shop:', finalShopId);
     
     res.status(201).json({
       success: true,
@@ -179,7 +209,7 @@ router.post('/', async (req, res) => {
       data: product
     });
   } catch (error) {
-    console.error('Error creating product:', error);
+    console.error('❌ Error creating product:', error);
     res.status(500).json({
       success: false,
       message: 'Failed to create product',
