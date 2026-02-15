@@ -76,7 +76,7 @@ router.get('/:id', async (req, res) => {
   }
 });
 
-// POST /api/shops - Register new shop
+// POST /api/shops - Register new shop (Google Sign-In)
 router.post('/', async (req, res) => {
   try {
     const {
@@ -87,52 +87,49 @@ router.post('/', async (req, res) => {
       phone,
       ownerName,
       ownerId,
+      email,
       imageUrl
     } = req.body;
     
+    console.log('🏪 Shop registration request:', { name, ownerName, ownerId, email });
+    
     // Validation
-    if (!name || !description || !category || !address || !phone || !ownerName) {
+    if (!name || !ownerName || !ownerId) {
       return res.status(400).json({
         success: false,
-        message: 'All required fields must be provided'
-      });
-    }
-    
-    // Check if shop name already exists
-    const existingShop = await Shop.findOne({ name: name.trim() });
-    if (existingShop) {
-      return res.status(409).json({
-        success: false,
-        message: 'Shop name already exists'
+        message: 'name, ownerName, and ownerId are required'
       });
     }
     
     // Check if owner already has a shop
-    if (ownerId) {
-      const ownerShop = await Shop.findOne({ ownerId: ownerId });
-      if (ownerShop) {
-        return res.status(409).json({
-          success: false,
-          message: 'Owner already has a registered shop',
-          data: ownerShop
-        });
-      }
+    const existingShop = await Shop.findOne({ ownerId });
+    if (existingShop) {
+      console.log('✅ Shop already exists for owner:', ownerId);
+      return res.json({
+        success: true,
+        message: 'Shop already exists',
+        data: existingShop
+      });
     }
     
     // Create new shop
     const shop = new Shop({
       name: name.trim(),
-      description: description.trim(),
-      category: category || 'Other', // Use 'Other' as default instead of 'General'
-      address: address.trim(),
-      phone: phone.trim(),
+      description: description?.trim() || `Welcome to ${name.trim()}`,
+      category: category || 'Other',
+      address: address?.trim() || 'Local Area',
+      phone: phone?.trim() || ownerId,
+      email: email?.trim() || '',
       ownerName: ownerName.trim(),
-      ownerId: ownerId || '',
+      ownerId: ownerId,
       imageUrl: imageUrl || '',
-      isApproved: true // Auto-approve for now
+      isActive: true,
+      isApproved: true // Auto-approve
     });
     
     await shop.save();
+    
+    console.log('✅ New shop created:', shop._id);
     
     res.status(201).json({
       success: true,
@@ -140,7 +137,7 @@ router.post('/', async (req, res) => {
       data: shop
     });
   } catch (error) {
-    console.error('Error registering shop:', error);
+    console.error('❌ Error registering shop:', error);
     res.status(500).json({
       success: false,
       message: 'Failed to register shop',

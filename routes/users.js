@@ -2,7 +2,84 @@ const express = require('express');
 const router = express.Router();
 const User = require('../models/User');
 
-// POST /api/users/init - Initialize or get user
+// POST /api/users - Create or get user (Google Sign-In)
+router.post('/', async (req, res) => {
+  try {
+    const { userId, name, email } = req.body;
+    
+    console.log('👤 User login request:', { userId, name, email });
+    
+    // Validation
+    if (!userId || !name || !email) {
+      return res.status(400).json({
+        success: false,
+        message: 'userId, name, and email are required'
+      });
+    }
+    
+    // Check if user exists by email or userId
+    let user = await User.findOne({ 
+      $or: [{ userId }, { email }] 
+    });
+    
+    if (user) {
+      console.log('✅ Existing user found:', user.userId);
+      
+      // Update user info if changed
+      let updated = false;
+      if (user.name !== name) {
+        user.name = name;
+        updated = true;
+      }
+      if (user.email !== email) {
+        user.email = email;
+        updated = true;
+      }
+      if (user.userId !== userId) {
+        user.userId = userId;
+        updated = true;
+      }
+      
+      if (updated) {
+        await user.save();
+        console.log('📝 User info updated');
+      }
+      
+      return res.json({
+        success: true,
+        message: 'User logged in successfully',
+        data: user
+      });
+    }
+    
+    // Create new user
+    user = new User({
+      userId,
+      name: name.trim(),
+      email: email.trim(),
+      isActive: true
+    });
+    
+    await user.save();
+    
+    console.log('✅ New user created:', user.userId);
+    
+    res.status(201).json({
+      success: true,
+      message: 'User registered successfully',
+      data: user
+    });
+  } catch (error) {
+    console.error('❌ Error in user login:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to process user login',
+      error: error.message
+    });
+  }
+});
+
+// POST /api/users/init - Initialize or get user (Legacy support)
 router.post('/init', async (req, res) => {
   try {
     const { userId } = req.body;
