@@ -57,6 +57,12 @@ const shopSchema = new mongoose.Schema({
     trim: true,
     index: true
   },
+  email: {
+    type: String,
+    default: '',
+    sparse: true,
+    index: true
+  },
   imageUrl: {
     type: String,
     default: ''

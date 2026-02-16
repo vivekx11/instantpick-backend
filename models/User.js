@@ -17,7 +17,9 @@ const userSchema = new mongoose.Schema({
   },
   email: {
     type: String,
-    default: ''
+    default: '',
+    sparse: true,
+    index: true
   },
   totalOrders: {
     type: Number,
