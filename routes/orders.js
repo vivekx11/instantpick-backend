@@ -53,6 +53,8 @@ router.post('/', async (req, res) => {
       shopId,
       shopName: shop.name,
       shopAddress: shop.address,
+      shopLatitude: shop.location?.coordinates?.[1], // latitude is second in GeoJSON
+      shopLongitude: shop.location?.coordinates?.[0], // longitude is first in GeoJSON
       items,
       totalAmount,
       pickupPin,

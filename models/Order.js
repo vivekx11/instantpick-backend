@@ -45,6 +45,14 @@ const orderSchema = new mongoose.Schema({
     type: String,
     required: true
   },
+  shopLatitude: {
+    type: Number,
+    required: false
+  },
+  shopLongitude: {
+    type: Number,
+    required: false
+  },
   items: [orderItemSchema],
   totalAmount: {
     type: Number,
