@@ -170,3 +170,89 @@ router.put('/:userId', async (req, res) => {
 });
 
 module.exports = router;
+
+// Update user location
+router.post('/:userId/location', async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { latitude, longitude, address } = req.body;
+
+    if (!latitude || !longitude) {
+      return res.status(400).json({
+        success: false,
+        message: 'Latitude and longitude are required'
+      });
+    }
+
+    const user = await User.findByIdAndUpdate(
+      userId,
+      {
+        location: {
+          type: 'Point',
+          coordinates: [longitude, latitude]
+        },
+        address: address || '',
+        locationSet: true
+      },
+      { new: true, runValidators: true }
+    );
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    res.json({
+      success: true,
+      message: 'Location updated successfully',
+      data: {
+        userId: user._id,
+        location: user.location,
+        address: user.address,
+        locationSet: user.locationSet
+      }
+    });
+  } catch (error) {
+    console.error('Error updating user location:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error',
+      error: error.message
+    });
+  }
+});
+
+// Get user location status
+router.get('/:userId/location/status', async (req, res) => {
+  try {
+    const { userId } = req.params;
+
+    const user = await User.findById(userId).select('locationSet location address');
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    res.json({
+      success: true,
+      data: {
+        locationSet: user.locationSet || false,
+        hasCoordinates: user.location && user.location.coordinates && 
+                       (user.location.coordinates[0] !== 0 || user.location.coordinates[1] !== 0),
+        address: user.address || ''
+      }
+    });
+  } catch (error) {
+    console.error('Error checking user location status:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error',
+      error: error.message
+    });
+  }
+});

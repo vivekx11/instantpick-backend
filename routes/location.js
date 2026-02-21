@@ -35,7 +35,8 @@ router.post('/shop/location', async (req, res) => {
           type: 'Point',
           coordinates: [longitude, latitude]
         },
-        deliveryRadius: deliveryRadius
+        deliveryRadius: deliveryRadius,
+        locationSet: true
       },
       { new: true, runValidators: true }
     );
@@ -283,3 +284,36 @@ function toRad(degrees) {
 }
 
 module.exports = router;
+
+// Check if shop location is set
+router.get('/shop/:shopId/status', async (req, res) => {
+  try {
+    const { shopId } = req.params;
+
+    const shop = await Shop.findById(shopId).select('locationSet location deliveryRadius');
+
+    if (!shop) {
+      return res.status(404).json({
+        success: false,
+        message: 'Shop not found'
+      });
+    }
+
+    res.json({
+      success: true,
+      data: {
+        locationSet: shop.locationSet || false,
+        hasCoordinates: shop.location && shop.location.coordinates && 
+                       (shop.location.coordinates[0] !== 0 || shop.location.coordinates[1] !== 0),
+        deliveryRadius: shop.deliveryRadius
+      }
+    });
+  } catch (error) {
+    console.error('Error checking shop location status:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error',
+      error: error.message
+    });
+  }
+});

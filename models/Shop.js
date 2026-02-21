@@ -111,6 +111,10 @@ const shopSchema = new mongoose.Schema({
     default: 5,
     min: 0,
     max: 50
+  },
+  locationSet: {
+    type: Boolean,
+    default: false
   }
 }, {
   timestamps: true

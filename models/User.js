@@ -34,6 +34,25 @@ const userSchema = new mongoose.Schema({
   isActive: {
     type: Boolean,
     default: true
+  },
+  location: {
+    type: {
+      type: String,
+      enum: ['Point'],
+      default: 'Point'
+    },
+    coordinates: {
+      type: [Number],
+      default: [0, 0]
+    }
+  },
+  address: {
+    type: String,
+    default: ''
+  },
+  locationSet: {
+    type: Boolean,
+    default: false
   }
 }, {
   timestamps: true
@@ -41,6 +60,7 @@ const userSchema = new mongoose.Schema({
 
 // Indexes
 userSchema.index({ createdAt: -1 });
+userSchema.index({ location: '2dsphere' });
 
 // Static method to generate unique userId
 userSchema.statics.generateUserId = async function() {
