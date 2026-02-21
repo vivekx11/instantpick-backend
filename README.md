@@ -1,252 +1,107 @@
-# Marketplace Backend API
+# InstantPick Backend API
 
-A Node.js/Express backend for the marketplace system with pickup codes.
+Node.js + Express + MongoDB backend for InstantPick marketplace application.
 
 ## Features
 
-- **Shop Management**: Register, list, and manage shops
-- **Product Catalog**: Add, update, and manage products by shop
-- **Order System**: Place orders with unique 6-digit pickup codes
-- **Pickup Code Verification**: Verify codes for order completion
-- **No Authentication**: Simple username-based system (no login required)
+- Shop management with geolocation
+- Product management with image upload (ImageKit)
+- Order management with pickup codes
+- User authentication
+- Geospatial queries for nearby shops
+- RESTful API design
 
-## Quick Start
+## Tech Stack
 
-### Prerequisites
-- Node.js (v16 or higher)
-- MongoDB (local or cloud)
+- Node.js
+- Express.js
+- MongoDB with Mongoose
+- ImageKit for image storage
+- JWT for authentication
 
-### Installation
+## Environment Variables
 
-1. **Clone and navigate to backend directory**
-```bash
-cd backend
+Create a `.env` file in the backend directory:
+
+```env
+PORT=3000
+NODE_ENV=production
+MONGODB_URI=your_mongodb_atlas_uri
+IMAGEKIT_PUBLIC_KEY=your_imagekit_public_key
+IMAGEKIT_PRIVATE_KEY=your_imagekit_private_key
+IMAGEKIT_URL_ENDPOINT=your_imagekit_url_endpoint
+JWT_SECRET=your_jwt_secret
 ```
 
-2. **Install dependencies**
+## Installation
+
 ```bash
 npm install
 ```
 
-3. **Set up environment variables**
-```bash
-cp .env.example .env
-# Edit .env with your configuration
-```
+## Running Locally
 
-4. **Start MongoDB** (if running locally)
 ```bash
-mongod
-```
-
-5. **Start the server**
-```bash
-# Development mode (with auto-reload)
-npm run dev
-
-# Production mode
 npm start
 ```
 
-The API will be available at `http://localhost:3000/api`
+For development with auto-reload:
+```bash
+npm run dev
+```
 
 ## API Endpoints
 
-### Health Check
-- `GET /api/health` - Check if API is running
-
 ### Shops
-- `GET /api/shops` - Get all approved shops
+- `GET /api/shops` - Get all shops
 - `GET /api/shops/:id` - Get shop by ID
-- `POST /api/shops` - Register new shop
+- `POST /api/shops` - Create new shop
 - `PUT /api/shops/:id` - Update shop
-- `PUT /api/shops/:id/toggle-status` - Toggle shop open/closed
-- `GET /api/shops/meta/categories` - Get shop categories
+- `DELETE /api/shops/:id` - Delete shop
 
 ### Products
-- `GET /api/products` - Get products (with filters)
+- `GET /api/products` - Get all products
 - `GET /api/products/:id` - Get product by ID
 - `POST /api/products` - Create new product
 - `PUT /api/products/:id` - Update product
 - `DELETE /api/products/:id` - Delete product
-- `PUT /api/products/:id/toggle-availability` - Toggle availability
 
 ### Orders
-- `POST /api/orders` - Place new order
-- `GET /api/orders/verify/:pickupCode` - Verify pickup code
-- `PUT /api/orders/:id/status` - Update order status
-- `GET /api/orders/shop/:shopId` - Get orders for shop
-- `GET /api/orders/user/:userId` - Get orders for user
+- `GET /api/orders` - Get all orders
 - `GET /api/orders/:id` - Get order by ID
+- `POST /api/orders` - Create new order
+- `PUT /api/orders/:id` - Update order status
 
-### Users
-- `GET /api/users/profile/:username` - Get user profile
-- `POST /api/users/profile` - Update user profile
+### Location
+- `POST /api/location/shop/location` - Save shop location
+- `POST /api/location/shops/nearby` - Get nearby shops
+- `POST /api/location/shops/deliverable` - Get deliverable shops
+- `GET /api/location/shops/radius` - Get shops within radius
 
-## Data Models
+### Upload
+- `POST /api/upload` - Upload image to ImageKit
 
-### Shop
-```javascript
-{
-  name: String,
-  description: String,
-  category: String,
-  address: String,
-  phone: String,
-  ownerName: String,
-  imageUrl: String,
-  isActive: Boolean,
-  isApproved: Boolean,
-  isOpen: Boolean,
-  rating: Number,
-  totalOrders: Number,
-  totalRevenue: Number
-}
-```
+## Deployment on Render
 
-### Product
-```javascript
-{
-  name: String,
-  description: String,
-  price: Number,
-  shopId: ObjectId,
-  shopName: String,
-  category: String,
-  imageUrls: [String],
-  isAvailable: Boolean,
-  stock: Number,
-  unit: String,
-  tags: [String]
-}
-```
+1. Push code to GitHub
+2. Create new Web Service on Render
+3. Connect GitHub repository
+4. Set environment variables
+5. Deploy
 
-### Order
-```javascript
-{
-  userId: String,
-  shopId: ObjectId,
-  shopName: String,
-  shopAddress: String,
-  items: [OrderItem],
-  totalAmount: Number,
-  pickupCode: String, // 6-digit unique code
-  status: String, // placed, accepted, preparing, ready, completed, cancelled
-  notes: String,
-  customerName: String,
-  expiresAt: Date // 24 hours from creation
-}
-```
+## MongoDB Setup
 
-## Usage Examples
+1. Create MongoDB Atlas account
+2. Create cluster
+3. Get connection string
+4. Add to MONGODB_URI in .env
 
-### Register a Shop
-```bash
-curl -X POST http://localhost:3000/api/shops \
-  -H "Content-Type: application/json" \
-  -d '{
-    "name": "Fresh Mart",
-    "description": "Fresh groceries and vegetables",
-    "category": "Grocery",
-    "address": "123 Main Street",
-    "phone": "+1234567890",
-    "ownerName": "John Doe"
-  }'
-```
+## ImageKit Setup
 
-### Place an Order
-```bash
-curl -X POST http://localhost:3000/api/orders \
-  -H "Content-Type: application/json" \
-  -d '{
-    "userId": "customer123",
-    "shopId": "shop_id_here",
-    "items": [
-      {
-        "productId": "product_id_here",
-        "productName": "Fresh Apples",
-        "price": 150,
-        "quantity": 2
-      }
-    ],
-    "totalAmount": 300,
-    "customerName": "Jane Smith",
-    "notes": "Please pack carefully"
-  }'
-```
+1. Create ImageKit account
+2. Get API keys from dashboard
+3. Add to .env file
 
-### Verify Pickup Code
-```bash
-curl http://localhost:3000/api/orders/verify/123456
-```
+## License
 
-## Development
-
-### Project Structure
-```
-backend/
-├── models/          # Database models
-├── routes/          # API route handlers
-├── middleware/      # Custom middleware (future)
-├── utils/           # Utility functions (future)
-├── server.js        # Main server file
-├── package.json     # Dependencies
-└── README.md        # This file
-```
-
-### Adding New Features
-
-1. **Create Model** (if needed) in `models/`
-2. **Create Routes** in `routes/`
-3. **Register Routes** in `server.js`
-4. **Test Endpoints** using curl or Postman
-
-### Database Indexes
-
-The models include optimized indexes for:
-- Shop search and filtering
-- Product queries by shop
-- Order lookup by pickup code
-- Performance optimization
-
-## Deployment
-
-### Environment Variables
-Set these in production:
-- `NODE_ENV=production`
-- `MONGODB_URI=your_production_mongodb_url`
-- `PORT=3000` (or your preferred port)
-
-### Docker (Optional)
-```dockerfile
-FROM node:16-alpine
-WORKDIR /app
-COPY package*.json ./
-RUN npm ci --only=production
-COPY . .
-EXPOSE 3000
-CMD ["npm", "start"]
-```
-
-## Integration with Flutter Apps
-
-### User App Integration
-- Use `/api/shops` to list shops
-- Use `/api/products?shopId=X` to get shop products
-- Use `/api/orders` to place orders
-- Display pickup codes from order response
-
-### Shop Owner App Integration
-- Use `/api/shops` to register shop
-- Use `/api/products` to manage products
-- Use `/api/orders/shop/:shopId` to get orders
-- Use `/api/orders/verify/:code` to verify pickup codes
-- Use `/api/orders/:id/status` to update order status
-
-## Support
-
-For issues or questions:
-1. Check the API health endpoint: `/api/health`
-2. Review server logs for errors
-3. Ensure MongoDB is running and accessible
-4. Verify environment variables are set correctly
+MIT

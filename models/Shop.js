@@ -94,6 +94,23 @@ const shopSchema = new mongoose.Schema({
     type: Number,
     default: 0,
     min: 0
+  },
+  location: {
+    type: {
+      type: String,
+      enum: ['Point'],
+      default: 'Point'
+    },
+    coordinates: {
+      type: [Number],
+      default: [0, 0]
+    }
+  },
+  deliveryRadius: {
+    type: Number,
+    default: 5,
+    min: 0,
+    max: 50
   }
 }, {
   timestamps: true
@@ -103,6 +120,7 @@ const shopSchema = new mongoose.Schema({
 shopSchema.index({ category: 1 });
 shopSchema.index({ isActive: 1, isApproved: 1 });
 shopSchema.index({ name: 'text', description: 'text' });
+shopSchema.index({ location: '2dsphere' });
 
 // Virtual for shop status
 shopSchema.virtual('status').get(function() {

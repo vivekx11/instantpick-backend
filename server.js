@@ -16,6 +16,7 @@ app.use('/api/shops', require('./routes/shops'));
 app.use('/api/products', require('./routes/products'));
 app.use('/api/orders', require('./routes/orders'));
 app.use('/api/users', require('./routes/users'));
+app.use('/api/location', require('./routes/location'));
 app.use('/api/upload-base64', require('./routes/upload_base64')); // Base64 upload (backup)
 
 // Use ImageKit if credentials are available, otherwise use base64
@@ -89,10 +90,10 @@ const connectDB = async () => {
 const startServer = async () => {
   await connectDB();
   
-  app.listen(PORT, () => {
+  app.listen(PORT, '0.0.0.0', () => {
     console.log(`🚀 Server running on port ${PORT}`);
-    console.log(`📱 API Base URL: http://localhost:${PORT}/api`);
-    console.log(`🏥 Health Check: http://localhost:${PORT}/api/health`);
+    console.log(`📱 API Base URL: ${process.env.NODE_ENV === 'production' ? 'https://your-app.onrender.com' : `http://localhost:${PORT}`}/api`);
+    console.log(`🏥 Health Check: ${process.env.NODE_ENV === 'production' ? 'https://your-app.onrender.com' : `http://localhost:${PORT}`}/api/health`);
   });
 };
 
