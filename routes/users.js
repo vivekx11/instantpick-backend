@@ -184,8 +184,8 @@ router.post('/:userId/location', async (req, res) => {
       });
     }
 
-    const user = await User.findByIdAndUpdate(
-      userId,
+    const user = await User.findOneAndUpdate(
+      { userId: userId },
       {
         location: {
           type: 'Point',
@@ -194,7 +194,7 @@ router.post('/:userId/location', async (req, res) => {
         address: address || '',
         locationSet: true
       },
-      { new: true, runValidators: true }
+      { new: true, upsert: true, runValidators: true }
     );
 
     if (!user) {
@@ -229,7 +229,7 @@ router.get('/:userId/location/status', async (req, res) => {
   try {
     const { userId } = req.params;
 
-    const user = await User.findById(userId).select('locationSet location address');
+    const user = await User.findOne({ userId: userId }).select('locationSet location address');
 
     if (!user) {
       return res.status(404).json({
