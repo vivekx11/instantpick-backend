@@ -8,10 +8,24 @@ const Order = require('../models/Order');
 // Admin Authentication Middleware
 const adminAuth = async (req, res, next) => {
   try {
-    const { adminKey } = req.headers;
-    if (adminKey !== process.env.ADMIN_KEY) {
-      return res.status(403).json({ success: false, message: 'Unauthorized' });
+    const adminKey = req.headers.adminkey || req.headers.adminKey;
+    
+    // Debug log (remove in production)
+    console.log('Received admin key:', adminKey);
+    console.log('Expected admin key:', process.env.ADMIN_KEY);
+    
+    if (!process.env.ADMIN_KEY) {
+      return res.status(500).json({ success: false, message: 'Admin key not configured on server' });
     }
+    
+    if (!adminKey) {
+      return res.status(403).json({ success: false, message: 'Admin key required' });
+    }
+    
+    if (adminKey !== process.env.ADMIN_KEY) {
+      return res.status(403).json({ success: false, message: 'Invalid admin key' });
+    }
+    
     next();
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
