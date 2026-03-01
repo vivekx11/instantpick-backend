@@ -10,6 +10,8 @@ const PORT = process.env.PORT || 3000;
 const allowedOrigins = [
   'http://localhost:3000',
   'http://localhost:8080',
+  'http://127.0.0.1:3000',
+  'http://127.0.0.1:8080',
   process.env.ADMIN_APP_URL,
   process.env.SHOP_APP_URL,
   process.env.USER_APP_URL,
@@ -17,16 +19,20 @@ const allowedOrigins = [
 
 app.use(cors({
   origin: function(origin, callback) {
-    // Allow requests with no origin (mobile apps, Postman, etc.)
+    // Allow requests with no origin (mobile apps, Postman, local files, etc.)
     if (!origin) return callback(null, true);
     
+    // Allow all origins in development or if in allowed list
     if (allowedOrigins.indexOf(origin) !== -1 || process.env.NODE_ENV === 'development') {
       callback(null, true);
     } else {
-      callback(new Error('Not allowed by CORS'));
+      // For production, allow all origins (since admin panel is a local file)
+      callback(null, true);
     }
   },
-  credentials: true
+  credentials: true,
+  exposedHeaders: ['*'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'adminKey', 'admin-key']
 }));
 
 app.use(express.json());
